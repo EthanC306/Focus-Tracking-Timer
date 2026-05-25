@@ -112,7 +112,7 @@ export function disconnect() {
 
 async function spotifyFetch(path, options = {}) {
   const token = await getValidToken()
-  if (!token) return { status: 401 }
+  if (!token) return { status: 401, ok: false }
 
   const res = await fetch('https://api.spotify.com/v1' + path, {
     ...options,
@@ -145,5 +145,6 @@ export async function previous() {
 }
 
 export async function setVolume(percent) {
-  await spotifyFetch('/me/player/volume?volume_percent=' + Math.round(percent), { method: 'PUT' })
+  const clamped = Math.min(100, Math.max(0, Math.round(percent)))
+  await spotifyFetch('/me/player/volume?volume_percent=' + clamped, { method: 'PUT' })
 }
