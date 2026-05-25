@@ -9,6 +9,8 @@ export default function SpotifyModal({ onClose }) {
   const [playback, setPlayback] = useState(null)
   const [volume, setVolumeState] = useState(50)
   const pollRef = useRef(null)
+  const pendingRef = useRef(false)
+  const volumeDebounceRef = useRef(null)
 
   // poll playback state every second when open and authed
   useEffect(() => {
@@ -25,19 +27,34 @@ export default function SpotifyModal({ onClose }) {
   }, [authed])
 
   async function handlePlay() {
-    if (playback?.is_playing) await pause()
-    else await play()
-    const data = await getPlayback()
-    setPlayback(data)
+    if (pendingRef.current) return
+    pendingRef.current = true
+    try {
+      if (playback?.is_playing) await pause()
+      else await play()
+      setPlayback(await getPlayback())
+    } finally { pendingRef.current = false }
   }
 
-  async function handleNext() { await next(); const d = await getPlayback(); setPlayback(d) }
-  async function handlePrev() { await previous(); const d = await getPlayback(); setPlayback(d) }
+  async function handleNext() {
+    if (pendingRef.current) return
+    pendingRef.current = true
+    try { await next(); setPlayback(await getPlayback()) }
+    finally { pendingRef.current = false }
+  }
+
+  async function handlePrev() {
+    if (pendingRef.current) return
+    pendingRef.current = true
+    try { await previous(); setPlayback(await getPlayback()) }
+    finally { pendingRef.current = false }
+  }
 
   async function handleVolume(e) {
     const v = Number(e.target.value)
     setVolumeState(v)
-    await setVolume(v)
+    clearTimeout(volumeDebounceRef.current)
+    volumeDebounceRef.current = setTimeout(() => setVolume(v), 180)
   }
 
   function handleDisconnect() {
