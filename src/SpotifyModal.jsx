@@ -16,14 +16,19 @@ export default function SpotifyModal({ onClose }) {
   useEffect(() => {
     if (!authed) return
     async function poll() {
-      const data = await getPlayback()
-      setPlayback(data)
-      if (data?.device?.volume_percent != null)
-        setVolumeState(data.device.volume_percent)
+      try {
+        const data = await getPlayback()
+        setPlayback(data)
+        if (data?.device?.volume_percent != null)
+          setVolumeState(data.device.volume_percent)
+      } catch { /* network offline — stay on last known state */ }
     }
     poll()
     pollRef.current = setInterval(poll, 1000)
-    return () => clearInterval(pollRef.current)
+    return () => {
+      clearInterval(pollRef.current)
+      clearTimeout(volumeDebounceRef.current)
+    }
   }, [authed])
 
   async function handlePlay() {
@@ -64,7 +69,7 @@ export default function SpotifyModal({ onClose }) {
   }
 
   const track = playback?.item
-  const progress = track ? (playback.progress_ms / track.duration_ms) * 100 : 0
+  const progress = track ? Math.min(100, (playback.progress_ms / (track.duration_ms || 1)) * 100) : 0
   const albumArt = track?.album?.images?.[1]?.url
 
   return (

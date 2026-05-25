@@ -1,4 +1,5 @@
 const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID
+if (!CLIENT_ID) console.error('[Spotify] VITE_SPOTIFY_CLIENT_ID is not set in .env')
 const SCOPES = 'user-read-playback-state user-modify-playback-state'
 
 function getRedirectUri() {
@@ -42,7 +43,9 @@ function clearTokens() {
 export async function login() {
   const verifier = generateCodeVerifier()
   const challenge = await generateCodeChallenge(verifier)
+  const state = crypto.randomUUID()
   sessionStorage.setItem('sp_verifier', verifier)
+  sessionStorage.setItem('sp_state', state)
 
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
@@ -51,11 +54,16 @@ export async function login() {
     scope: SCOPES,
     code_challenge_method: 'S256',
     code_challenge: challenge,
+    state,
   })
   window.location.href = 'https://accounts.spotify.com/authorize?' + params
 }
 
-export async function handleCallback(code) {
+export async function handleCallback(code, returnedState) {
+  const expectedState = sessionStorage.getItem('sp_state')
+  if (expectedState && returnedState !== expectedState) throw new Error('State mismatch — possible CSRF')
+  sessionStorage.removeItem('sp_state')
+
   const verifier = sessionStorage.getItem('sp_verifier')
   if (!verifier) throw new Error('No code verifier found')
 
@@ -76,7 +84,15 @@ export async function handleCallback(code) {
   sessionStorage.removeItem('sp_verifier')
 }
 
+let refreshPromise = null
+
 async function refreshAccessToken() {
+  if (refreshPromise) return refreshPromise
+  refreshPromise = _doRefresh().finally(() => { refreshPromise = null })
+  return refreshPromise
+}
+
+async function _doRefresh() {
   const { refreshToken } = getTokens()
   if (!refreshToken) { clearTokens(); return null }
 

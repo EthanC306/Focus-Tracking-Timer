@@ -87,7 +87,7 @@ export default function App() {
     const code = params.get('code')
     if (!code) return
     history.replaceState({}, '', window.location.pathname)
-    handleCallback(code).then(() => setMusicOpen(true)).catch(console.error)
+    handleCallback(code, params.get('state')).then(() => setMusicOpen(true)).catch(console.error)
   }, [])
 
   function getAudioCtx() {
