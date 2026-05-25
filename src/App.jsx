@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
+import SpotifyModal from './SpotifyModal'
+import { handleCallback } from './useSpotify'
 
 const THEMES = [
   { name: 'Rose Bloom',   bg1: '#e8a0c8', bg2: '#d94f8a', bg3: '#f08060', swatch: 'linear-gradient(135deg,#e8a0c8,#d94f8a,#f08060)' },
@@ -46,6 +48,7 @@ export default function App() {
   const [ampm, setAmpm] = useState('')
   const [dateStr, setDateStr] = useState('')
   const [quote] = useState(() => QUOTES[Math.floor(Math.random() * QUOTES.length)])
+  const [musicOpen, setMusicOpen] = useState(false)
 
   const intervalRef = useRef(null)
   const audioCtxRef = useRef(null)
@@ -78,6 +81,14 @@ export default function App() {
   }, [namePanelOpen])
 
   useEffect(() => () => clearInterval(intervalRef.current), [])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('code')
+    if (!code) return
+    history.replaceState({}, '', window.location.pathname)
+    handleCallback(code).then(() => setMusicOpen(true)).catch(console.error)
+  }, [])
 
   function getAudioCtx() {
     if (!audioCtxRef.current)
@@ -252,7 +263,7 @@ export default function App() {
           <div className="pill" title="Tasks">
             <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" /></svg>
           </div>
-          <div className="pill" title="Music">
+          <div className="pill" title="Music" onClick={e => { e.stopPropagation(); setMusicOpen(true) }}>
             <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z" /></svg>
           </div>
           <div className="pill" title="Notes">
@@ -333,6 +344,9 @@ export default function App() {
         />
         <button className="name-panel-save" onClick={saveName}>Save</button>
       </div>
+
+      {/* Spotify Modal */}
+      {musicOpen && <SpotifyModal onClose={() => setMusicOpen(false)} />}
     </>
   )
 }
